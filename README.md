@@ -18,9 +18,17 @@ A Flutter application that provides essential Islamic tools including prayer tim
   - Shows the exact degrees to Qibla
   - Works worldwide
 
-- **Coming Soon**
-  - Quran reader
-  - Settings and preferences
+- **Quran Reader**
+  - Browse and read the complete Quran
+  - Multiple translation options
+  - Save and track your last reading position
+  - Beautiful Arabic text display
+
+- **Settings and Preferences**
+  - Light and dark theme options
+  - Multiple languages (English, Indonesian, Japanese)
+  - Prayer notification settings
+  - Location updates
 
 - **User Experience**
   - Beautiful Material Design UI
