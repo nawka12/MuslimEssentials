@@ -61,8 +61,9 @@ class PrayerTimesProvider extends ChangeNotifier {
         print('Error loading location name: $e');
       }
       
-      // Schedule notifications for today if enabled
-      if (_settingsProvider.notificationsEnabled && _currentPrayerTime != null) {
+      // Schedule notifications for today if enabled and context is available
+      // Only schedule notifications immediately if we have a valid context
+      if (_settingsProvider.notificationsEnabled && _currentPrayerTime != null && context != null) {
         await scheduleNotificationsForToday(context);
       }
     } catch (e) {
@@ -334,6 +335,12 @@ class PrayerTimesProvider extends ChangeNotifier {
       return;
     }
     
+    // If context is not available, we can't localize properly, so don't schedule
+    if (context == null) {
+      print('Cannot schedule notifications: Context is not available for localization');
+      return;
+    }
+    
     // Cancel existing notifications first
     await _notificationService.cancelAllNotifications();
     
@@ -342,48 +349,27 @@ class PrayerTimesProvider extends ChangeNotifier {
       return;
     }
     
-    // If context is available, use localization
-    if (context != null) {
-      // Prepare localized prayer names
-      final localizedPrayerNames = {
-        'fajr': t(context, 'fajr'),
-        'dhuhr': t(context, 'dhuhr'),
-        'asr': t(context, 'asr'),
-        'maghrib': t(context, 'maghrib'),
-        'isha': t(context, 'isha'),
-        'prayer': t(context, 'nav_prayer_times'),
-      };
-      
-      // Schedule with localized strings
-      await _notificationService.schedulePrayerTimeNotifications(
-        prayerTime: _currentPrayerTime!,
-        enabledPrayers: _settingsProvider.enabledPrayerNotifications,
-        minutesBefore: _settingsProvider.notificationMinutesBefore,
-        localizedPrayerNames: localizedPrayerNames,
-        bodyTextFormatter: (prayerName, minutes) => 
-          t(context, 'get_notified_minutes_before_prayer_time', args: [minutes.toString()]),
-      );
-    } else {
-      // Fallback to English if context is not available
-      print('Warning: Context not available for localization, using default English strings');
-      await _notificationService.schedulePrayerTimeNotifications(
-        prayerTime: _currentPrayerTime!,
-        enabledPrayers: _settingsProvider.enabledPrayerNotifications,
-        minutesBefore: _settingsProvider.notificationMinutesBefore,
-        localizedPrayerNames: {
-          'fajr': 'Fajr',
-          'dhuhr': 'Dhuhr',
-          'asr': 'Asr',
-          'maghrib': 'Maghrib',
-          'isha': 'Isha',
-          'prayer': 'Prayer',
-        },
-        bodyTextFormatter: (prayerName, minutes) => 
-          '$prayerName prayer time is approaching in $minutes minutes',
-      );
-    }
+    // Prepare localized prayer names
+    final localizedPrayerNames = {
+      'fajr': t(context, 'fajr'),
+      'dhuhr': t(context, 'dhuhr'),
+      'asr': t(context, 'asr'),
+      'maghrib': t(context, 'maghrib'),
+      'isha': t(context, 'isha'),
+      'prayer': t(context, 'nav_prayer_times'),
+    };
     
-    print('Notifications scheduled successfully');
+    // Schedule with localized strings
+    await _notificationService.schedulePrayerTimeNotifications(
+      prayerTime: _currentPrayerTime!,
+      enabledPrayers: _settingsProvider.enabledPrayerNotifications,
+      minutesBefore: _settingsProvider.notificationMinutesBefore,
+      localizedPrayerNames: localizedPrayerNames,
+      bodyTextFormatter: (prayerName, minutes) => 
+        t(context, 'get_notified_minutes_before_prayer_time', args: [minutes.toString()]),
+    );
+    
+    print('Notifications scheduled successfully with localization');
   }
   
   // Get the next prayer time

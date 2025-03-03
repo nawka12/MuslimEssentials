@@ -19,6 +19,7 @@ final Map<String, String> enTranslations = {
   'asr': 'Asr',
   'maghrib': 'Maghrib',
   'isha': 'Isha',
+  'press_again_to_exit': 'Press back button again to exit',
 
   // Settings Screen
   'prayer_settings': 'Prayer Settings',

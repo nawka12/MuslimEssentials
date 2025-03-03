@@ -23,6 +23,9 @@ class _NavigationContainerState extends State<NavigationContainer> {
   bool _notificationsInitialized = false;
   String _notificationError = '';
   
+  // Variables for double-tap to exit
+  DateTime? _lastBackPressTime;
+  
   final List<Widget> _screens = [
     const HomeScreen(),
     const QuranScreen(),
@@ -149,53 +152,88 @@ class _NavigationContainerState extends State<NavigationContainer> {
       _selectedIndex = index;
     });
   }
+  
+  // Handle back button press
+  Future<bool> _onWillPop() async {
+    // If we're not on the home screen (Prayer Times), navigate to it instead of closing the app
+    if (_selectedIndex != 0) {
+      setState(() {
+        _selectedIndex = 0;
+      });
+      return false; // Don't close the app
+    }
+    
+    // If we're on the home screen, implement "press again to exit" functionality
+    final now = DateTime.now();
+    
+    if (_lastBackPressTime == null || 
+        now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+      _lastBackPressTime = now;
+      
+      // Show a toast message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(t(context, 'press_again_to_exit')),
+          duration: const Duration(seconds: 2),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return false; // Don't close the app on first press
+    }
+    
+    return true; // Close the app on second press
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     
-    return Scaffold(
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).dividerColor,
-              width: 1,
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        body: _screens[_selectedIndex],
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).dividerColor,
+                width: 1,
+              ),
             ),
           ),
-        ),
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _selectedIndex,
-          selectedItemColor: colorScheme.primary,
-          unselectedItemColor: Colors.grey,
-          selectedLabelStyle: textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w500,
+          child: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            currentIndex: _selectedIndex,
+            selectedItemColor: colorScheme.primary,
+            unselectedItemColor: Colors.grey,
+            selectedLabelStyle: textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+            unselectedLabelStyle: textTheme.bodySmall,
+            showUnselectedLabels: true,
+            elevation: 0,
+            onTap: _onItemTapped,
+            items: [
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.access_time),
+                label: t(context, 'nav_prayer_times'),
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.menu_book),
+                label: t(context, 'nav_quran'),
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.explore),
+                label: t(context, 'nav_qibla'),
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.settings),
+                label: t(context, 'nav_settings'),
+              ),
+            ],
           ),
-          unselectedLabelStyle: textTheme.bodySmall,
-          showUnselectedLabels: true,
-          elevation: 0,
-          onTap: _onItemTapped,
-          items: [
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.access_time),
-              label: t(context, 'nav_prayer_times'),
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.menu_book),
-              label: t(context, 'nav_quran'),
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.explore),
-              label: t(context, 'nav_qibla'),
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.settings),
-              label: t(context, 'nav_settings'),
-            ),
-          ],
         ),
       ),
     );

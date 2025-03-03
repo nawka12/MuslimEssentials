@@ -19,6 +19,7 @@ final Map<String, String> idTranslations = {
   'asr': 'Ashar',
   'maghrib': 'Maghrib',
   'isha': 'Isya',
+  'press_again_to_exit': 'Tekan tombol kembali sekali lagi untuk keluar',
 
   // Settings Screen
   'prayer_settings': 'Pengaturan Shalat',

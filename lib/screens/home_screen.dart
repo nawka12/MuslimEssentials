@@ -22,7 +22,13 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     // Initialize provider when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<PrayerTimesProvider>(context, listen: false).initialize();
+      final provider = Provider.of<PrayerTimesProvider>(context, listen: false);
+      provider.initialize().then((_) {
+        // Ensure notifications are scheduled with proper context
+        if (provider.currentPrayerTime != null) {
+          provider.scheduleNotificationsForToday(context);
+        }
+      });
     });
     
     // Start timer to update countdown and current time

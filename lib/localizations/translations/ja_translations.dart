@@ -19,6 +19,7 @@ final Map<String, String> jaTranslations = {
   'asr': 'アスル',
   'maghrib': 'マグリブ',
   'isha': 'イシャー',
+  'press_again_to_exit': 'もう一度戻るボタンを押すと終了します',
 
   // Settings Screen
   'prayer_settings': '礼拝設定',

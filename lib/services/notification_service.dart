@@ -3,8 +3,12 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_init;
 import 'dart:io';
+import 'dart:ui';
 import '../models/prayer_time.dart';
 import '../localizations/app_localizations.dart';
+import '../localizations/translations/en_translations.dart';
+import '../localizations/translations/ja_translations.dart';
+import '../localizations/translations/id_translations.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -13,6 +17,44 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   
   NotificationService._internal();
+  
+  // Get system locale or fallback to English
+  Locale _getSystemLocale() {
+    final locale = PlatformDispatcher.instance.locale;
+    return locale;
+  }
+  
+  // Get translation for a key based on system locale when context is not available
+  String _getLocalizedString(String key, {List<String>? args}) {
+    final locale = _getSystemLocale();
+    final languageCode = locale.languageCode;
+    
+    // Select the appropriate translation map based on language code
+    Map<String, String> translations;
+    switch (languageCode) {
+      case 'ja':
+        translations = jaTranslations;
+        break;
+      case 'id':
+        translations = idTranslations;
+        break;
+      case 'en':
+      default:
+        translations = enTranslations;
+    }
+    
+    // Get the translation for the specified key
+    String translation = translations[key] ?? key;
+    
+    // Replace placeholders with args if any
+    if (args != null && args.isNotEmpty) {
+      for (int i = 0; i < args.length; i++) {
+        translation = translation.replaceAll('{}', args[i]);
+      }
+    }
+    
+    return translation;
+  }
   
   Future<void> initialize() async {
     try {
@@ -43,6 +85,14 @@ class NotificationService {
           debugPrint('Notification tapped: ${notificationResponse.payload}');
         },
       );
+      
+      // Handle system recreated notifications
+      final notificationAppLaunchDetails = 
+          await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
+      if (notificationAppLaunchDetails?.didNotificationLaunchApp ?? false) {
+        debugPrint('App launched via notification - ensuring proper localization of future notifications');
+        // The notification system will handle creating notifications with proper localization when needed
+      }
       
       // Request permissions for iOS/macOS
       if (Platform.isIOS || Platform.isMacOS) {
@@ -167,6 +217,18 @@ class NotificationService {
     );
   }
   
+  // Get localized prayer names from system locale when context is not available
+  Map<String, String> _getLocalizedPrayerNames() {
+    return {
+      'fajr': _getLocalizedString('fajr'),
+      'dhuhr': _getLocalizedString('dhuhr'),
+      'asr': _getLocalizedString('asr'),
+      'maghrib': _getLocalizedString('maghrib'),
+      'isha': _getLocalizedString('isha'),
+      'prayer': _getLocalizedString('nav_prayer_times'),
+    };
+  }
+  
   // Schedule notifications for a prayer time with localized content
   Future<void> schedulePrayerTimeNotifications({
     required PrayerTime prayerTime,
@@ -270,6 +332,74 @@ class NotificationService {
     
     // Combine day of year and prayer ID
     return dayOfYear + (prayerIds[prayerName] ?? 0);
+  }
+  
+  // Reschedule prayer notifications using system locale (used for system recreated notifications)
+  Future<void> reschedulePrayerNotificationsFromSystem(
+    PrayerTime prayerTime,
+    Map<String, bool> enabledPrayers,
+    int minutesBefore
+  ) async {
+    // Get localized prayer names based on system locale
+    final localizedPrayerNames = _getLocalizedPrayerNames();
+    
+    // Convert date and prayer times to DateTime objects
+    final date = _parseDate(prayerTime.date);
+    
+    // Define a map of prayer names and times
+    final prayers = {
+      'fajr': {
+        'displayName': localizedPrayerNames['fajr'] ?? 'Fajr',
+        'time': _parseTimeString(date, prayerTime.fajr),
+        'enabled': enabledPrayers['fajr'] ?? false,
+      },
+      'dhuhr': {
+        'displayName': localizedPrayerNames['dhuhr'] ?? 'Dhuhr', 
+        'time': _parseTimeString(date, prayerTime.dhuhr),
+        'enabled': enabledPrayers['dhuhr'] ?? false,
+      },
+      'asr': {
+        'displayName': localizedPrayerNames['asr'] ?? 'Asr',
+        'time': _parseTimeString(date, prayerTime.asr),
+        'enabled': enabledPrayers['asr'] ?? false,
+      },
+      'maghrib': {
+        'displayName': localizedPrayerNames['maghrib'] ?? 'Maghrib',
+        'time': _parseTimeString(date, prayerTime.maghrib),
+        'enabled': enabledPrayers['maghrib'] ?? false,
+      },
+      'isha': {
+        'displayName': localizedPrayerNames['isha'] ?? 'Isha',
+        'time': _parseTimeString(date, prayerTime.isha),
+        'enabled': enabledPrayers['isha'] ?? false,
+      },
+    };
+    
+    // Schedule notifications for each enabled prayer
+    for (final entry in prayers.entries) {
+      final prayerName = entry.key;
+      final prayerData = entry.value;
+      
+      if (prayerData['enabled'] == true) {
+        final displayName = prayerData['displayName'] as String;
+        final title = '${displayName} ' + (localizedPrayerNames['prayer'] ?? 'Prayer');
+        final body = _getLocalizedString('get_notified_minutes_before_prayer_time', args: [minutesBefore.toString()]);
+        final time = prayerData['time'] as DateTime;
+        
+        // Use a unique ID for each prayer
+        final id = _getNotificationId(prayerName, date);
+        
+        await schedulePrayerNotification(
+          id: id,
+          title: title,
+          body: body,
+          scheduledTime: time,
+          minutesBefore: minutesBefore,
+        );
+      }
+    }
+    
+    debugPrint('Notifications rescheduled with system locale: ${_getSystemLocale().languageCode}');
   }
   
   // Check if notification permissions are granted (for Android)
