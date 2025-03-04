@@ -73,9 +73,53 @@ class _AyahItemState extends State<AyahItem> {
 
   // Helper method to separate Bismillah from first ayah text
   List<String> _processAyahText(Ayah ayah, int surahNumber) {
-    // Check if this is the first ayah (except for Surah 1 Al-Fatihah and Surah 9 At-Tawbah)
+    // Only process the first ayah of each surah (except for Surah 1 Al-Fatihah and Surah 9 At-Tawbah)
     if (ayah.numberInSurah == 1 && surahNumber != 1 && surahNumber != 9) {
       final String text = ayah.text;
+      
+      // Different Unicode variations of Bismillah that might appear in the text
+      final List<String> bismillahVariations = [
+        'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَـٰنِ ٱلرَّحِیمِ', // Common variation
+        'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ',   // Variation seen in Surah 4
+        'بسم الله الرحمن الرحيم',             // Simple variation without diacritics
+        'بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ',   // Another common variation
+      ];
+      
+      // Special handling for surahs with Arabic letters (Muqatta'at)
+      final List<int> muqattaatSurahs = [2, 3, 7, 10, 11, 12, 13, 14, 15, 19, 20, 26, 27, 28, 29, 30, 31, 32, 36, 38, 40, 41, 42, 43, 44, 45, 46, 50, 68];
+      
+      // Map of known Arabic letter patterns for each surah
+      final Map<int, String> muqattaatPatterns = {
+        2: 'الۤمۤ', // Al-Baqarah: Alif Lam Mim
+        3: 'الۤمۤ', // Aal-i-Imraan: Alif Lam Mim
+        7: 'الۤمۤصۤ', // Al-A'raf: Alif Lam Mim Sad
+        10: 'الۤرۤ', // Yunus: Alif Lam Ra
+        11: 'الۤرۤ', // Hud: Alif Lam Ra
+        12: 'الۤرۤ', // Yusuf: Alif Lam Ra
+        13: 'الۤمۤرۤ', // Ar-Ra'd: Alif Lam Mim Ra
+        14: 'الۤرۤ', // Ibrahim: Alif Lam Ra
+        15: 'الۤرۤ', // Al-Hijr: Alif Lam Ra
+        19: 'كۤهۤيۤعۤصۤ', // Maryam: Kaf Ha Ya Ain Sad
+        20: 'طۤهۤ', // Ta-Ha: Ta Ha
+        26: 'طۤسۤمۤ', // Ash-Shu'ara: Ta Sin Mim
+        27: 'طۤسۤ', // An-Naml: Ta Sin
+        28: 'طۤسۤمۤ', // Al-Qasas: Ta Sin Mim
+        29: 'الۤمۤ', // Al-Ankabut: Alif Lam Mim
+        30: 'الۤمۤ', // Ar-Rum: Alif Lam Mim
+        31: 'الۤمۤ', // Luqman: Alif Lam Mim
+        32: 'الۤمۤ', // As-Sajdah: Alif Lam Mim
+        36: 'يۤسۤ', // Ya-Sin: Ya Sin
+        38: 'صۤ', // Sad: Sad
+        40: 'حۤمۤ', // Ghafir: Ha Mim
+        41: 'حۤمۤ', // Fussilat: Ha Mim
+        42: 'حۤمۤ', // Ash-Shura: Ha Mim
+        43: 'حۤمۤ', // Az-Zukhruf: Ha Mim
+        44: 'حۤمۤ', // Ad-Dukhan: Ha Mim
+        45: 'حۤمۤ', // Al-Jathiyah: Ha Mim
+        46: 'حۤمۤ', // Al-Ahqaf: Ha Mim
+        50: 'قۤ', // Qaf: Qaf
+        68: 'نۤ', // Al-Qalam: Nun
+      };
       
       // Look for newline as our separator (added by the API service)
       if (text.contains('\n')) {
@@ -86,10 +130,160 @@ class _AyahItemState extends State<AyahItem> {
           // Join remaining parts in case there are multiple newlines
           final String ayahText = parts.sublist(1).join('\n').trim();
           
-          // Return the separated parts if both are non-empty
-          if (bismillah.isNotEmpty && ayahText.isNotEmpty) {
-            return [bismillah, ayahText];
+          // Check if the first part is a Bismillah variation
+          bool firstPartIsBismillah = false;
+          for (final b in bismillahVariations) {
+            if (bismillah.trim() == b.trim()) {
+              firstPartIsBismillah = true;
+              break;
+            }
           }
+          
+          // Check if the second part still contains a Bismillah variation
+          bool secondPartContainsBismillah = false;
+          String cleanedAyahText = ayahText;
+          
+          for (final b in bismillahVariations) {
+            if (ayahText.contains(b)) {
+              secondPartContainsBismillah = true;
+              // Remove the Bismillah from the second part
+              cleanedAyahText = ayahText.replaceFirst(b, '').trim();
+              print('Removed duplicate Bismillah from second part for Surah $surahNumber');
+              break;
+            }
+          }
+          
+          // Special handling for Muqatta'at surahs
+          if (muqattaatSurahs.contains(surahNumber)) {
+            final String pattern = muqattaatPatterns[surahNumber] ?? '';
+            
+            // If we have a pattern for this surah
+            if (pattern.isNotEmpty) {
+              if (firstPartIsBismillah) {
+                print('Found Bismillah and Arabic letters pattern for Surah $surahNumber');
+                return [bismillah, pattern];
+              }
+            }
+          }
+          
+          // Return the separated parts if both are non-empty
+          if (bismillah.isNotEmpty && cleanedAyahText.isNotEmpty && firstPartIsBismillah) {
+            print('Successfully separated Bismillah for Surah $surahNumber using newline');
+            return [bismillah, cleanedAyahText];
+          } else if (bismillah.isNotEmpty && ayahText.isNotEmpty) {
+            print('Successfully separated Bismillah for Surah $surahNumber using newline');
+            return [bismillah, secondPartContainsBismillah ? cleanedAyahText : ayahText];
+          }
+        }
+      }
+      
+      // If no newline was found, check if the text contains any variation of Bismillah
+      bool containsBismillah = false;
+      String matchedBismillah = '';
+      
+      for (final bismillah in bismillahVariations) {
+        if (text.contains(bismillah)) {
+          containsBismillah = true;
+          matchedBismillah = bismillah;
+          print('Found Bismillah variation in AyahItem for Surah $surahNumber: $matchedBismillah');
+          break;
+        }
+      }
+      
+      // If we found a Bismillah variation
+      if (containsBismillah) {
+        // Special handling for Muqatta'at surahs
+        if (muqattaatSurahs.contains(surahNumber)) {
+          final String pattern = muqattaatPatterns[surahNumber] ?? '';
+          
+          if (pattern.isNotEmpty) {
+            // If the text contains both Bismillah and the pattern, return them separately
+            print('Found both Bismillah and Arabic letters pattern for Surah $surahNumber');
+            return [matchedBismillah, pattern];
+          }
+        }
+        
+        // Check if the Bismillah is at the beginning of the text
+        if (text.startsWith(matchedBismillah)) {
+          // Remove the Bismillah from the beginning of the text
+          String ayahText = text.substring(matchedBismillah.length).trim();
+          
+          if (ayahText.isNotEmpty) {
+            print('Successfully separated Bismillah from beginning for Surah $surahNumber');
+            return [matchedBismillah, ayahText];
+          }
+        }
+        
+        // List of common Arabic letter patterns that might appear in the first ayah
+        final List<String> arabicLetterPatternsList = [
+          'الۤمۤ', // Alif Lam Mim
+          'الۤمۤصۤ', // Alif Lam Mim Sad
+          'الۤرۤ', // Alif Lam Ra
+          'الۤمۤرۤ', // Alif Lam Mim Ra
+          'كۤهۤيۤعۤصۤ', // Kaf Ha Ya Ain Sad
+          'طۤهۤ', // Ta Ha
+          'طۤسۤمۤ', // Ta Sin Mim
+          'طۤسۤ', // Ta Sin
+          'يۤسۤ', // Ya Sin
+          'صۤ', // Sad
+          'حۤمۤ', // Ha Mim
+          'قۤ', // Qaf
+          'نۤ', // Nun
+        ];
+        
+        // Check if the text contains any of these patterns
+        for (final pattern in arabicLetterPatternsList) {
+          if (text.contains(pattern)) {
+            print('Found Arabic letters pattern "$pattern" for Surah $surahNumber');
+            return [matchedBismillah, pattern];
+          }
+        }
+        
+        // If we couldn't separate using the above methods, just return the Bismillah and the full text
+        // This ensures we don't accidentally cut off parts of the ayah
+        print('Could not safely separate Bismillah for Surah $surahNumber, returning full text');
+        return [matchedBismillah, text];
+      }
+      
+      // For translations, try to identify and separate Bismillah
+      final List<String> bismillahPhrases = [
+        'In the name of Allah',
+        'In the Name of Allah',
+        'In the name of God',
+        'In the Name of God',
+        'In the name of',
+        'Au nom d\'Allah',
+        'Im Namen',
+        'En el nombre',
+        'Bismillah',
+      ];
+      
+      // Check if the text starts with any Bismillah phrase
+      for (final phrase in bismillahPhrases) {
+        if (text.startsWith(phrase)) {
+          // Look for end markers
+          final List<String> endMarkers = ['. ', '.\n', '! ', '? '];
+          int endPos = -1;
+          
+          for (final marker in endMarkers) {
+            if (text.contains(marker)) {
+              endPos = text.indexOf(marker) + 1; // include the period
+              break;
+            }
+          }
+          
+          // If we found an end marker
+          if (endPos > 0) {
+            final String bismillah = text.substring(0, endPos);
+            final String ayahText = text.substring(endPos).trim();
+            
+            if (bismillah.isNotEmpty && ayahText.isNotEmpty) {
+              print('Successfully separated Bismillah in translation for Surah $surahNumber');
+              return [bismillah, ayahText];
+            }
+          }
+          
+          break;
         }
       }
     }
@@ -108,24 +302,181 @@ class _AyahItemState extends State<AyahItem> {
     final translationDirection = getTextDirectionForLanguage(widget.translationLanguage);
     
     // Process the ayah text to potentially separate Bismillah
-    List<String> processedText;
+    List<String> processedText = _processAyahText(widget.ayah, widget.surahNumber);
     
-    if (widget.surahNumber == 2 && widget.ayah.numberInSurah == 1) {
-      // Special case for Al-Baqarah
-      processedText = ['بِسۡمِ ٱللَّهِ ٱلرَّحۡمَـٰنِ ٱلرَّحِیمِ', 'الۤمۤ'];
-    } else {
-      // Normal processing for other surahs
-      processedText = _processAyahText(widget.ayah, widget.surahNumber);
-    }
+    // Debug the processed text
+    print('Original text for Surah ${widget.surahNumber}, Ayah ${widget.ayah.numberInSurah}: ${widget.ayah.text}');
+    print('Processed text parts: $processedText');
     
-    // If hideBismillah is true, we only want the actual ayah text, not the Bismillah
-    String displayText;
-    if (widget.hideBismillah && processedText.length > 1) {
-      // Use only the second part (the actual ayah text without Bismillah)
-      displayText = processedText[1];
+    // Determine what text to display based on hideBismillah flag
+    String displayText = widget.ayah.text; // Initialize with default value
+    
+    // Special handling for first ayah of surahs (except Al-Fatihah and At-Tawbah)
+    if (widget.ayah.numberInSurah == 1 && widget.surahNumber != 1 && widget.surahNumber != 9) {
+      // List of Bismillah variations to check against
+      final List<String> bismillahVariations = [
+        'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَـٰنِ ٱلرَّحِیمِ', // Common variation
+        'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ',   // Variation seen in Surah 4
+        'بسم الله الرحمن الرحيم',             // Simple variation without diacritics
+        'بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ',   // Another common variation
+      ];
+      
+      if (processedText.length > 1) {
+        // Check if the first part is a Bismillah variation
+        bool firstPartIsBismillah = false;
+        for (final bismillah in bismillahVariations) {
+          if (processedText[0].trim() == bismillah.trim()) {
+            firstPartIsBismillah = true;
+            break;
+          }
+        }
+        
+        // Check if the second part contains a Bismillah variation
+        bool secondPartContainsBismillah = false;
+        for (final bismillah in bismillahVariations) {
+          if (processedText[1].contains(bismillah)) {
+            secondPartContainsBismillah = true;
+            break;
+          }
+        }
+        
+        if (firstPartIsBismillah) {
+          // If hideBismillah is true, only show the second part (ayah text without Bismillah)
+          if (widget.hideBismillah) {
+            // For non-Muqatta'at surahs, we need to check if the second part still contains Bismillah
+            if (secondPartContainsBismillah) {
+              // If the second part still contains Bismillah, we need to remove it
+              String cleanedText = processedText[1];
+              for (final bismillah in bismillahVariations) {
+                if (cleanedText.contains(bismillah)) {
+                  cleanedText = cleanedText.replaceFirst(bismillah, '').trim();
+                  print('Removed Bismillah from second part for Surah ${widget.surahNumber}');
+                  break;
+                }
+              }
+              displayText = cleanedText;
+            } else {
+              displayText = processedText[1];
+            }
+            
+            // Additional check to ensure the displayText doesn't still contain Bismillah
+            bool stillContainsBismillah = false;
+            for (final bismillah in bismillahVariations) {
+              if (displayText.contains(bismillah)) {
+                displayText = displayText.replaceFirst(bismillah, '').trim();
+                stillContainsBismillah = true;
+                print('Found and removed additional Bismillah in displayText for Surah ${widget.surahNumber}');
+                break;
+              }
+            }
+            
+            print('Hiding Bismillah for Surah ${widget.surahNumber}, showing only: $displayText');
+          } else {
+            // If hideBismillah is false, use the original text to ensure we don't lose any content
+            displayText = widget.ayah.text;
+            print('Showing full text for Surah ${widget.surahNumber}: $displayText');
+          }
+        } else {
+          // If the first part is not a Bismillah, check if the second part contains Bismillah
+          if (secondPartContainsBismillah && widget.hideBismillah) {
+            // Special case: if the second part contains Bismillah and we need to hide it
+            // This might happen with some Muqatta'at surahs where the order got mixed up
+            String cleanedText = processedText[1];
+            for (final bismillah in bismillahVariations) {
+              if (cleanedText.contains(bismillah)) {
+                cleanedText = cleanedText.replaceFirst(bismillah, '').trim();
+                break;
+              }
+            }
+            displayText = processedText[0] + " " + cleanedText;
+            print('Special case: Hiding Bismillah from second part for Surah ${widget.surahNumber}, showing only: $displayText');
+          } else {
+            // Otherwise use the original text
+            displayText = widget.hideBismillah ? processedText.join(' ') : widget.ayah.text;
+            print('Using joined text for Surah ${widget.surahNumber}: $displayText');
+          }
+        }
+      } else {
+        // If we couldn't separate the text, check if it contains Bismillah and hide it if needed
+        if (widget.hideBismillah) {
+          String cleanedText = processedText[0];
+          bool bismillahRemoved = false;
+          
+          for (final bismillah in bismillahVariations) {
+            if (cleanedText.contains(bismillah)) {
+              cleanedText = cleanedText.replaceFirst(bismillah, '').trim();
+              displayText = cleanedText;
+              bismillahRemoved = true;
+              print('Removed Bismillah from unseparated text for Surah ${widget.surahNumber}');
+              break;
+            }
+          }
+          
+          if (!bismillahRemoved) {
+            // If no Bismillah was found or removed
+            displayText = processedText[0];
+            print('No Bismillah found in unseparated text for Surah ${widget.surahNumber}');
+          }
+        } else {
+          // If hideBismillah is false, use the original text
+          displayText = widget.ayah.text;
+          print('Using original text for Surah ${widget.surahNumber} (could not separate)');
+        }
+      }
+      
+      // Special handling for surahs with Arabic letters (Muqatta'at)
+      final List<int> muqattaatSurahs = [2, 3, 7, 10, 11, 12, 13, 14, 15, 19, 20, 26, 27, 28, 29, 30, 31, 32, 36, 38, 40, 41, 42, 43, 44, 45, 46, 50, 68];
+      
+      // If this is the first ayah of a Muqatta'at surah and hideBismillah is true,
+      // make sure we're only showing the Arabic letters, not the Bismillah
+      if (widget.hideBismillah && muqattaatSurahs.contains(widget.surahNumber)) {
+        // Map of known Arabic letter patterns for each surah
+        final Map<int, String> muqattaatPatterns = {
+          2: 'الۤمۤ', // Al-Baqarah: Alif Lam Mim
+          3: 'الۤمۤ', // Aal-i-Imraan: Alif Lam Mim
+          7: 'الۤمۤصۤ', // Al-A'raf: Alif Lam Mim Sad
+          10: 'الۤرۤ', // Yunus: Alif Lam Ra
+          11: 'الۤرۤ', // Hud: Alif Lam Ra
+          12: 'الۤرۤ', // Yusuf: Alif Lam Ra
+          13: 'الۤمۤرۤ', // Ar-Ra'd: Alif Lam Mim Ra
+          14: 'الۤرۤ', // Ibrahim: Alif Lam Ra
+          15: 'الۤرۤ', // Al-Hijr: Alif Lam Ra
+          19: 'كۤهۤيۤعۤصۤ', // Maryam: Kaf Ha Ya Ain Sad
+          20: 'طۤهۤ', // Ta-Ha: Ta Ha
+          26: 'طۤسۤمۤ', // Ash-Shu'ara: Ta Sin Mim
+          27: 'طۤسۤ', // An-Naml: Ta Sin
+          28: 'طۤسۤمۤ', // Al-Qasas: Ta Sin Mim
+          29: 'الۤمۤ', // Al-Ankabut: Alif Lam Mim
+          30: 'الۤمۤ', // Ar-Rum: Alif Lam Mim
+          31: 'الۤمۤ', // Luqman: Alif Lam Mim
+          32: 'الۤمۤ', // As-Sajdah: Alif Lam Mim
+          36: 'يۤسۤ', // Ya-Sin: Ya Sin
+          38: 'صۤ', // Sad: Sad
+          40: 'حۤمۤ', // Ghafir: Ha Mim
+          41: 'حۤمۤ', // Fussilat: Ha Mim
+          42: 'حۤمۤ', // Ash-Shura: Ha Mim
+          43: 'حۤمۤ', // Az-Zukhruf: Ha Mim
+          44: 'حۤمۤ', // Ad-Dukhan: Ha Mim
+          45: 'حۤمۤ', // Al-Jathiyah: Ha Mim
+          46: 'حۤمۤ', // Al-Ahqaf: Ha Mim
+          50: 'قۤ', // Qaf: Qaf
+          68: 'نۤ', // Al-Qalam: Nun
+        };
+        
+        // Get the pattern for this surah
+        final String pattern = muqattaatPatterns[widget.surahNumber] ?? '';
+        
+        // If we have a pattern for this surah, use it directly
+        if (pattern.isNotEmpty) {
+          // For Muqatta'at surahs, we should just show the Arabic letters pattern
+          // regardless of what's in the displayText
+          displayText = pattern;
+          print('Using Arabic letter pattern for Muqatta\'at Surah ${widget.surahNumber}: $pattern');
+        }
+      }
     } else {
-      // If not separated or we want to show Bismillah, use the original text
-      displayText = processedText.length > 1 ? processedText[1] : processedText[0];
+      // For all other ayahs, use the original text
+      displayText = widget.ayah.text;
     }
     
     // Make sure to forward the key explicitly to the outermost Widget

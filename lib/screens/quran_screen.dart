@@ -563,7 +563,8 @@ class _QuranScreenState extends State<QuranScreen> {
           translationAyah: translationAyah,
           translationLanguage: translationLanguage,
           surahNumber: surah.number,
-          hideBismillah: true,
+          // Only hide Bismillah for first ayah in surahs that should have Bismillah header
+          hideBismillah: ayah.numberInSurah == 1 && surah.number != 1 && surah.number != 9,
           isLastRead: isLastRead,
         )
       );
